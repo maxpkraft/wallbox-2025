@@ -9,6 +9,8 @@ Inhalt:
 05_Netzbetreiber_Checkliste.pdf / .rtf
 06_Fragen_an_den_Elektriker.pdf / .rtf
 07_Stopfehler_Checkliste.pdf / .rtf
+08_Musterbrief_Eigentuemerversammlung.pdf / .rtf
+09_Vorlage_Angebot_Elektroinstallateur.pdf / .rtf
 
 Hinweise:
 - Alle Vorlagen sind als Service gedacht. Das Buch ist ohne Downloads vollständig nutzbar.
