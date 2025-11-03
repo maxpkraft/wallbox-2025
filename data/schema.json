@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "id",
+    "gebiet",
+    "land",
+    "programm",
+    "status",
+    "typ",
+    "stand"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "gebiet": {
+      "type": "string"
+    },
+    "land": {
+      "type": "string"
+    },
+    "programm": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "offen",
+        "pausiert",
+        "ersch\u00f6pft",
+        "geschlossen"
+      ]
+    },
+    "typ": {
+      "enum": [
+        "land",
+        "kommunal",
+        "stadtwerk",
+        "bund",
+        "sonstiges"
+      ]
+    },
+    "betrag_fix": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "prozentsatz": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "deckel": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "kumuliert_mit": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "bedingungen": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "richtlinie": {
+      "type": "string"
+    },
+    "antrag": {
+      "type": "string"
+    },
+    "stand": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}
