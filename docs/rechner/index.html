@@ -7,12 +7,14 @@
   <link rel="stylesheet" href="../assets/style.css">
   <meta name="description" content="Rechner für Wallbox-Förderung: Kombination aus Land/Kommune/Stadtwerke, THG und Leasing.">
   <style>
+    /* micro-layout, compatible avec ton style existant */
     .grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
     .grid label{display:flex;flex-direction:column;gap:6px}
     input,select,button{font:inherit;padding:10px;border:1px solid #e5e8ee;border-radius:10px}
     .button.primary{background:var(--acc);border:none;font-weight:700;cursor:pointer}
     .cards{display:grid;gap:12px}
     .muted{color:#444}
+    .wide-land{min-width:320px}
   </style>
 </head>
 <body>
@@ -29,20 +31,35 @@
       <form id="form">
         <div class="grid">
           <label>Bundesland
-            <select id="land" required>
+            <select id="land" required class="wide-land" aria-label="Bundesland wählen">
               <option value="">Bitte wählen…</option>
-              <option>BW</option><option>BY</option><option>BE</option><option>BB</option>
-              <option>HB</option><option>HH</option><option>HE</option><option>MV</option>
-              <option>NI</option><option>NW</option><option>RP</option><option>SL</option>
-              <option>SN</option><option>ST</option><option>SH</option><option>TH</option>
+              <option value="BW" title="Baden-Württemberg">Baden-Württemberg (BW)</option>
+              <option value="BY" title="Bayern">Bayern (BY/BAY)</option>
+              <option value="BE" title="Berlin">Berlin (BE)</option>
+              <option value="BB" title="Brandenburg">Brandenburg (BB)</option>
+              <option value="HB" title="Bremen">Bremen (HB)</option>
+              <option value="HH" title="Hamburg">Hamburg (HH)</option>
+              <option value="HE" title="Hessen">Hessen (HE)</option>
+              <option value="MV" title="Mecklenburg-Vorpommern">Mecklenburg-Vorpommern (MV)</option>
+              <option value="NI" title="Niedersachsen">Niedersachsen (NI/NDS)</option>
+              <option value="NW" title="Nordrhein-Westfalen">Nordrhein-Westfalen (NW/NRW)</option>
+              <option value="RP" title="Rheinland-Pfalz">Rheinland-Pfalz (RP/RLP)</option>
+              <option value="SL" title="Saarland">Saarland (SL)</option>
+              <option value="SN" title="Sachsen">Sachsen (SN)</option>
+              <option value="ST" title="Sachsen-Anhalt">Sachsen-Anhalt (ST)</option>
+              <option value="SH" title="Schleswig-Holstein">Schleswig-Holstein (SH)</option>
+              <option value="TH" title="Thüringen">Thüringen (TH)</option>
             </select>
           </label>
+
           <label>Wallbox-Preis (Brutto, €)
             <input id="preis" type="number" min="0" step="1" placeholder="z. B. 1200" required>
           </label>
+
           <label>THG-Quote nutzen?
             <select id="thg"><option value="ja">Ja</option><option value="nein">Nein</option></select>
           </label>
+
           <label>Leasing
             <select id="leasing">
               <option value="">Kein Leasing</option>
@@ -53,6 +70,7 @@
             </select>
           </label>
         </div>
+
         <div style="margin-top:10px">
           <button type="submit" class="button primary">Berechnen</button>
         </div>
