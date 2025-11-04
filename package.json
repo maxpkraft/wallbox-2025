@@ -1,5 +1,5 @@
 {
-  "name": "wallbox-hub-ci",
+  "name": "wallbox-hub",
   "private": true,
   "type": "module",
   "scripts": {
