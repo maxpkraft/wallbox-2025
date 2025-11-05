@@ -1,4 +1,4 @@
-// scripts/xlsx_to_json.mjs
+// -scripts/xlsx_to_json.mjs
 import fs from 'node:fs';
 import xlsx from 'xlsx';
 
