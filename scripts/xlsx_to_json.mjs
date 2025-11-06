@@ -1,4 +1,4 @@
-// -scripts/xlsx_to_json.mjs
+// scripts/xlsx_to_json.mjs
 import fs from 'node:fs';
 import xlsx from 'xlsx';
 
@@ -16,7 +16,7 @@ if (!fs.existsSync(SRC)) {
 const wb = xlsx.readFile(SRC);
 console.log('Sheets:', wb.SheetNames);
 
-// Choix de la feuille
+// Feuille prioritaire : "Foerderungen" / "Förderungen" sinon 1ʳᵉ
 const pick =
   (wb.SheetNames.includes('Foerderungen') && 'Foerderungen') ||
   (wb.SheetNames.includes('Förderungen') && 'Förderungen') ||
@@ -26,10 +26,10 @@ const ws = wb.Sheets[pick];
 const rows = xlsx.utils.sheet_to_json(ws, { defval: '' });
 console.log('Using sheet:', pick, '| Rows:', rows.length);
 
-// -------- MAPPING souple des colonnes --------
+// -------- ALIAS de colonnes --------
 const norm = s => String(s||'').normalize('NFKD')
-  .replace(/[\u0300-\u036f]/g,'')     // accents
-  .replace(/[^a-zA-Z0-9]+/g,'')       // non-alphanum
+  .replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-zA-Z0-9]+/g,'')
   .toLowerCase();
 
 const ALIASES = {
@@ -49,40 +49,46 @@ const ALIASES = {
   stand: ['stand','datum','letzteaktualisierung','standdatum','updated']
 };
 
-function valueFrom(row, targetKey) {
-  const keys = Object.keys(row);
-  const wanted = ALIASES[targetKey];
-  if (!wanted) return row[targetKey];
+function val(row, targetKey) {
+  const wanted = ALIASES[targetKey] || [targetKey];
   const set = new Set(wanted.map(norm));
-  for (const k of keys) if (set.has(norm(k))) return row[k];
+  for (const k of Object.keys(row)) if (set.has(norm(k))) return row[k];
   return row[targetKey];
 }
 
-function toNumber(v){ const n = Number(String(v).replace(',','.')); return isNaN(n) ? null : n; }
-function toList(v){ return String(v||'').split(';').map(s=>s.trim()).filter(Boolean); }
+const num = v => {
+  if (v === '' || v == null) return null;
+  const n = Number(String(v).replace(',','.'));
+  return Number.isFinite(n) ? n : null;
+};
+const list = v => String(v||'').split(';').map(s=>s.trim()).filter(Boolean);
 
 const programs = rows.map(r => ({
-  id: valueFrom(r,'id'),
-  gebiet: valueFrom(r,'gebiet'),
-  land: valueFrom(r,'land'),
-  programm: valueFrom(r,'programm'),
-  status: valueFrom(r,'status'),
-  typ: valueFrom(r,'typ'),
-  betrag_fix: toNumber(valueFrom(r,'betrag_fix')),
-  prozentsatz: toNumber(valueFrom(r,'prozentsatz')),
-  deckel: toNumber(valueFrom(r,'deckel')),
-  kumuliert_mit: toList(valueFrom(r,'kumuliert_mit')),
-  bedingungen: toList(valueFrom(r,'bedingungen')),
-  richtlinie: valueFrom(r,'richtlinie') || '',
-  antrag: valueFrom(r,'antrag') || '',
-  stand: valueFrom(r,'stand')
+  id: val(r,'id'),
+  gebiet: val(r,'gebiet'),
+  land: val(r,'land'),
+  programm: val(r,'programm'),
+  status: val(r,'status'),
+  typ: val(r,'typ'),
+  betrag_fix: num(val(r,'betrag_fix')),
+  prozentsatz: num(val(r,'prozentsatz')),
+  deckel: num(val(r,'deckel')),
+  kumuliert_mit: list(val(r,'kumuliert_mit')),
+  bedingungen: list(val(r,'bedingungen')),
+  richtlinie: val(r,'richtlinie') || '',
+  antrag: val(r,'antrag') || '',
+  stand: val(r,'stand')
 }));
 
-fs.mkdirSync('docs/rechner/data', { recursive: true });
-fs.writeFileSync(
-  OUT,
-  JSON.stringify({ programs, meta:{ version:'v1.0', generated_at:new Date().toISOString() } }, null, 2)
-);
+if (programs.length < 5) {
+  console.error('❌ Trop peu de lignes converties (', programs.length, '). Vérifie la feuille/colonnes.');
+  process.exit(1);
+}
 
-console.log('✅ Écrit:', OUT);
+fs.mkdirSync('docs/rechner/data', { recursive: true });
+const payload = { programs, meta:{ version:'v1.0', generated_at:new Date().toISOString() } };
+fs.writeFileSync(OUT, JSON.stringify(payload, null, 2));
+
+const size = fs.statSync(OUT).size;
+console.log('✅ Écrit:', OUT, '| bytes:', size);
 console.log('🧪 IDs (5):', programs.slice(0,5).map(p=>p.id));
