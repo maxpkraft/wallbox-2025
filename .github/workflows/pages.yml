@@ -40,6 +40,11 @@ jobs:
 
       - name: Validate JSON
         run: npm run validate
+        
+      - name: Debug JSON generated
+        run: |
+          ls -la docs/rechner/data || true
+          node -e "const fs=require('fs');const p='docs/rechner/data/data.json';if(fs.existsSync(p)){const d=JSON.parse(fs.readFileSync(p,'utf8'));console.log('Programs:', d.programs.length);console.log('First IDs:', d.programs.slice(0,5).map(x=>x.id));}else{console.error('data.json not found');process.exit(1)}"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
