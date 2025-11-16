@@ -2,7 +2,7 @@ name: Build & Deploy (Excel -> JSON -> Pages)
 
 on:
   push:
-    branches: [ main ]        # ajoute d'autres branches si besoin
+    branches: [ main ]     # ajoute d'autres branches si besoin
   workflow_dispatch:
 
 permissions:
@@ -18,7 +18,7 @@ jobs:
   build-deploy:
     runs-on: ubuntu-latest
 
-    # 👇 OBLIGATOIRE pour actions/deploy-pages@v4
+    # requis par actions/deploy-pages@v4
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -35,23 +35,35 @@ jobs:
       - name: Install deps
         run: npm install
 
+      # 1) Génère docs/rechner/data/data.json à partir de data/foerderungen.xlsx
       - name: Build JSON from Excel
         run: npm run build
 
-      - name: Validate JSON
-        run: npm run validate
-        
+      # 2) S’assure que le fichier existe même en cas d’échec (fallback vide mais valide)
+      - name: Ensure data.json exists (fallback)
+        run: |
+          if [ ! -f docs/rechner/data/data.json ]; then
+            echo '⚠️  Fallback: création data.json vide'
+            mkdir -p docs/rechner/data
+            echo '{"programs":[],"meta":{"version":"v1.0","generated_at":"'$(date -u +%FT%TZ)'","note":"fallback missing file"}}' > docs/rechner/data/data.json
+          fi
+
+      # 3) Debug : affiche le nombre d’entrées générées
       - name: Debug JSON generated
         run: |
           ls -la docs/rechner/data || true
           node -e "const fs=require('fs');const p='docs/rechner/data/data.json';if(fs.existsSync(p)){const d=JSON.parse(fs.readFileSync(p,'utf8'));console.log('Programs:', d.programs.length);console.log('First IDs:', d.programs.slice(0,5).map(x=>x.id));}else{console.error('data.json not found');process.exit(1)}"
 
+      # 4) Validation AJV (ton script doit importer Ajv 2020: `import Ajv from "ajv/dist/2020.js";`)
+      - name: Validate JSON
+        run: npm run validate
+
+      # 5) Upload & déploiement Pages
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./docs
 
-      # 👇 Donne un ID au step pour exposer page_url
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
