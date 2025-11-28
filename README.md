@@ -1,2 +1,2 @@
-# wallbox-2025
-Wallbox Förderung 2025 – Checklisten und Ressourcen
+# wallbox
+Wallbox Förderung 2026 – Checklisten und Ressourcen

@@ -1,5 +1,5 @@
-Wallbox Förderung 2025 – Vorlagen & Checklisten (Download-Pack)
-Version: 2025-09-05
+Wallbox Förderung 2026 – Vorlagen & Checklisten (Download-Pack)
+Version: 2025-11-28
 
 Inhalt:
 01_Checkliste_Foerderantrag.pdf / .rtf

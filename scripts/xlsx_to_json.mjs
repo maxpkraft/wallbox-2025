@@ -1,94 +1,79 @@
 // scripts/xlsx_to_json.mjs
-import fs from 'node:fs';
-import xlsx from 'xlsx';
+import fs from "node:fs";
+import xlsx from "xlsx";
 
-const SRC = 'data/foerderungen.xlsx';
-const OUT = 'docs/rechner/data/data.json';
+const DATA_DIR = "data";
+const OUT = "docs/rechner/data/data.json";
 
-const needKeys = ['id','gebiet','land','programm','status','typ','stand'];
+console.log("CWD:", process.cwd());
 
-const norm = s => String(s||'').normalize('NFKD')
-  .replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'').toLowerCase();
-
-if (!fs.existsSync(SRC)) { console.error('❌ Excel introuvable à', SRC); process.exit(1); }
-
-const wb = xlsx.readFile(SRC);
-console.log('Sheets:', wb.SheetNames);
-
-// Heuristique: score chaque feuille selon le nb de lignes non vides et la présence des colonnes utiles
-function scoreSheet(name){
-  const rows = xlsx.utils.sheet_to_json(wb.Sheets[name], { defval: '' });
-  if (!rows.length) return { name, rows: 0, cols: 0, rowsData: [] };
-  const keys = Object.keys(rows[0]).map(norm);
-  const cols = needKeys.filter(k => keys.includes(norm(k))).length;
-  return { name, rows: rows.length, cols, rowsData: rows };
+// 1) Que voit le runner ?
+console.log("Contenu racine:", fs.readdirSync("."));
+if (!fs.existsSync(DATA_DIR)) {
+  console.error(`❌ Dossier ${DATA_DIR}/ introuvable`);
+  process.exit(1);
 }
+console.log("Contenu de data/:", fs.readdirSync(DATA_DIR));
 
-let candidates = wb.SheetNames.map(scoreSheet);
-// boost si le nom ressemble à "Foerderungen/ Förd…"
-candidates = candidates.sort((a,b)=>{
-  const aBoost = /foerder|förder/i.test(a.name) ? 1000 : 0;
-  const bBoost = /foerder|förder/i.test(b.name) ? 1000 : 0;
-  return (b.cols*100 + b.rows + bBoost) - (a.cols*100 + a.rows + aBoost);
-});
+// 2) Chercher foerderungen.xlsx (insensible à la casse)
+const cand = fs.readdirSync(DATA_DIR).find((f) => /^foerderungen\.xlsx$/i.test(f));
+if (!cand) {
+  console.error("❌ Aucun fichier 'foerderungen.xlsx' trouvé dans data/ (vérifie nom/branche).");
+  process.exit(1);
+}
+const SRC = `${DATA_DIR}/${cand}`;
+console.log("Excel utilisé:", SRC);
 
-const pick = candidates[0];
-console.log(`Using sheet: ${pick.name} | Rows: ${pick.rows} | ColsMatch: ${pick.cols}`);
+// 3) Lire le classeur
+const wb = xlsx.readFile(SRC);
+if (!wb.SheetNames || !wb.SheetNames.length) {
+  console.error("❌ Excel sans feuilles.");
+  process.exit(1);
+}
+console.log("Feuilles trouvées:", wb.SheetNames);
 
-if (pick.rows < 5 || pick.cols < 4) {
-  console.error('❌ Trop peu de données ou colonnes manquantes sur la meilleure feuille. Vérifie l’Excel.');
+// 4) On prend la première feuille (simple et sûr)
+const sheetName = wb.SheetNames[0];
+const ws = wb.Sheets[sheetName];
+const rows = xlsx.utils.sheet_to_json(ws, { defval: "" });
+console.log(`Feuille choisie: ${sheetName} | lignes: ${rows.length}`);
+
+if (!rows.length) {
+  console.error("❌ 0 lignes lues sur la feuille choisie.");
   process.exit(1);
 }
 
-// Aliases souples
-const ALIASES = {
-  id: ['id','programm_id','programmnummer'],
-  gebiet: ['gebiet','ort','kommune','stadt','gemeinde','kreis','region'],
-  land: ['land','bundesland','state'],
-  programm: ['programm','programmname','titel','name'],
-  status: ['status','programmstatus'],
-  typ: ['typ','kategorie','art'],
-  betrag_fix: ['betrag_fix','fix','pauschale','einmalbetrag','zuschuss','foerderbetrag'],
-  prozentsatz: ['prozentsatz','quote','anteil','foerderquote'],
-  deckel: ['deckel','max','obergrenze','maximum','max_betrag','maximalbetrag'],
-  kumuliert_mit: ['kumuliert_mit','kombinierbar','kumulierung','kombinationen'],
-  bedingungen: ['bedingungen','auflagen','voraussetzungen','kriterien'],
-  richtlinie: ['richtlinie','quelle','info','link','url'],
-  antrag: ['antrag','antragslink','formular','link_antrag'],
-  stand: ['stand','datum','letzteaktualisierung','standdatum','updated']
+// 5) Mapping direct colonne->clé (suppose que ton Excel a déjà les bons noms de colonnes)
+const programs = rows.map((r) => ({
+  id: r.id,
+  gebiet: r.gebiet,
+  land: r.land,
+  programm: r.programm,
+  status: r.status,
+  typ: r.typ,
+  betrag_fix: r.betrag_fix === "" ? null : Number(String(r.betrag_fix).replace(",", ".")),
+  prozentsatz: r.prozentsatz === "" ? null : Number(String(r.prozentsatz).replace(",", ".")),
+  deckel: r.deckel === "" ? null : Number(String(r.deckel).replace(",", ".")),
+  kumuliert_mit: String(r.kumuliert_mit || "")
+    .split(";")
+    .map((s) => s.trim())
+    .filter(Boolean),
+  bedingungen: String(r.bedingungen || "")
+    .split(";")
+    .map((s) => s.trim())
+    .filter(Boolean),
+  richtlinie: r.richtlinie || "",
+  antrag: r.antrag || "",
+  stand: r.stand,
+}));
+
+console.log("Programmes convertis:", programs.length);
+
+fs.mkdirSync("docs/rechner/data", { recursive: true });
+const payload = {
+  programs,
+  meta: { version: "v1.0", generated_at: new Date().toISOString() },
 };
-const keySetCache = {};
-function val(row, targetKey) {
-  const wanted = ALIASES[targetKey] || [targetKey];
-  const set = keySetCache[targetKey] ||= new Set(wanted.map(norm));
-  for (const k of Object.keys(row)) if (set.has(norm(k))) return row[k];
-  return row[targetKey];
-}
-const num = v => (v===''||v==null) ? null : (Number(String(v).replace(',','.')) || null);
-const list = v => String(v||'').split(';').map(s=>s.trim()).filter(Boolean);
-
-const programs = pick.rowsData.map(r => ({
-  id: val(r,'id'),
-  gebiet: val(r,'gebiet'),
-  land: val(r,'land'),
-  programm: val(r,'programm'),
-  status: val(r,'status'),
-  typ: val(r,'typ'),
-  betrag_fix: num(val(r,'betrag_fix')),
-  prozentsatz: num(val(r,'prozentsatz')),
-  deckel: num(val(r,'deckel')),
-  kumuliert_mit: list(val(r,'kumuliert_mit')),
-  bedingungen: list(val(r,'bedingungen')),
-  richtlinie: val(r,'richtlinie') || '',
-  antrag: val(r,'antrag') || '',
-  stand: val(r,'stand')
-})).filter(p => p.id && p.programm && p.land);
-
-if (programs.length < 5) { console.error('❌ Seulement', programs.length, 'lignes valides.'); process.exit(1); }
-
-fs.mkdirSync('docs/rechner/data', { recursive: true });
-const payload = { programs, meta:{ version:'v1.0', generated_at:new Date().toISOString() } };
 fs.writeFileSync(OUT, JSON.stringify(payload, null, 2));
-
-console.log('✅ Écrit:', OUT, '| Programs:', programs.length);
-console.log('🧪 First IDs:', programs.slice(0,5).map(p=>p.id));
+console.log("✅ data.json écrit:", OUT);
+console.log("🧪 IDs (5):", programs.slice(0, 5).map((p) => p.id));
